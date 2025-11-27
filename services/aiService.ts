@@ -3,7 +3,6 @@ import { GoogleGenAI, Type } from "@google/genai";
 import { File, ClarificationRequest, ProjectConfig } from '../types';
 
 // Initialize Gemini API Client
-// The API key must be obtained exclusively from the environment variable process.env.API_KEY
 const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
 const MODEL_NAME = "gemini-2.5-flash";
 
@@ -39,23 +38,21 @@ const fileSchema = {
 const cleanJson = (text: string): string => {
   if (!text) return "{}";
   
-  // 1. Try to find markdown block
-  const match = text.match(/```(?:json)?\s*([\s\S]*?)\s*```/);
-  if (match) {
-      text = match[1];
-  }
+  // Remove markdown code block syntax if present
+  let clean = text.replace(/```json\s*/g, '').replace(/```\s*/g, '');
   
-  // 2. Try to find raw JSON object start/end
-  const firstBrace = text.indexOf('{');
-  const lastBrace = text.lastIndexOf('}');
+  // Find the outer-most JSON object
+  const firstBrace = clean.indexOf('{');
+  const lastBrace = clean.lastIndexOf('}');
   
   if (firstBrace !== -1 && lastBrace !== -1 && lastBrace > firstBrace) {
-    return text.substring(firstBrace, lastBrace + 1);
+    clean = clean.substring(firstBrace, lastBrace + 1);
+  } else {
+    // If no braces found, return original to let JSON.parse fail with a useful error or try parsing as is
+    return text;
   }
   
-  // 3. Fallback: If it doesn't look like an object, return empty object to fail gracefully
-  // rather than crashing JSON.parse with arbitrary text
-  return "{}";
+  return clean;
 };
 
 export const aiService = {
@@ -67,7 +64,6 @@ export const aiService = {
 
     // Step 5: Logic Implementation with Ambiguity Check
     if (stepId === 5 && !context.hasClarified) {
-      // Ask the model if it has any questions before coding
       try {
         const ambiguityResponse = await ai.models.generateContent({
             model: MODEL_NAME,
@@ -75,7 +71,8 @@ export const aiService = {
             Features context: ${featuresList}.
             Review the requirements and current progress. 
             Identify ONE critical ambiguity or missing detail that prevents you from writing perfect code (e.g., state persistence preference, undefined API behavior).
-            Return a JSON object with a 'question' field. If everything is clear, return null or an empty object.`,
+            Return a JSON object with a 'question' field. If everything is clear, return null or an empty object.
+            Return PURE JSON.`,
             config: {
             responseMimeType: "application/json",
             responseSchema: {
@@ -124,7 +121,8 @@ export const aiService = {
 
         Generate a professional README.md that outlines the features, tech stack (Vanilla JS + Tailwind CSS), and project structure. 
         
-        Return JSON object with "files" array containing the README.md.`;
+        Return a JSON object with a "files" array containing the README.md.
+        Return PURE JSON. Do not wrap in markdown blocks.`;
         break;
 
       case 3: // Design (CSS)
@@ -138,7 +136,8 @@ export const aiService = {
         - Ensure it works well with Tailwind CSS utility classes.
         ${fileContext}
         
-        Return JSON object with "files" array containing style.css.`;
+        Return a JSON object with a "files" array containing style.css.
+        Return PURE JSON. Do not wrap in markdown blocks.`;
         break;
 
       case 4: // Scaffolding (HTML)
@@ -156,7 +155,8 @@ export const aiService = {
         - Ensure all IDs and classes required for JS logic are present.
         ${fileContext}
         
-        Return JSON object with "files" array containing index.html.`;
+        Return a JSON object with a "files" array containing index.html.
+        Return PURE JSON. Do not wrap in markdown blocks.`;
         break;
 
       case 5: // Logic (JS)
@@ -182,7 +182,8 @@ export const aiService = {
         Context: The HTML structure is already defined in index.html.
         ${fileContext}
         
-        Return JSON object with "files" array containing app.js.`;
+        Return a JSON object with a "files" array containing app.js.
+        Return PURE JSON. Do not wrap in markdown blocks.`;
         break;
 
       default:
@@ -204,7 +205,7 @@ export const aiService = {
       const output = JSON.parse(cleanText);
       return { type: 'code', files: output.files || [] };
     } catch (e) {
-      console.error("Failed to parse AI response", e);
+      console.error("Failed to parse AI response. Raw text:", e);
       return { type: 'code', files: [] };
     }
   },
@@ -241,6 +242,7 @@ export const aiService = {
     - Ensure consistency with the existing theme and structure.
     - Return a JSON object with a "files" array containing ONLY the files that need to be updated.
     - You MUST return the FULL CONTENT of any file you modify. Do not use diffs or placeholders.
+    - Return PURE JSON. Do not wrap in markdown blocks.
     `;
 
     try {
