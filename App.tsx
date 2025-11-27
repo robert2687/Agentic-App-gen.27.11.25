@@ -16,7 +16,7 @@ import {
   CheckCircleIcon, CircleIcon, LoaderIcon,
   DesktopIcon, TabletIcon, MobileIcon,
   GeneratorIcon, MaximizeIcon, MinimizeIcon,
-  PlayIcon
+  PlayIcon, AlertTriangleIcon, XIcon
 } from './components/Icons';
 
 const App: React.FC = () => {
@@ -36,6 +36,7 @@ const App: React.FC = () => {
   const [previewWidth, setPreviewWidth] = useState(45);
   const [isResizing, setIsResizing] = useState(false);
   const [isZenMode, setIsZenMode] = useState(false);
+  const [activeError, setActiveError] = useState<string | null>(null);
 
   // Refinement State
   const [isRefineModalOpen, setIsRefineModalOpen] = useState(false);
@@ -162,6 +163,11 @@ const App: React.FC = () => {
     }]);
   };
 
+  const showError = (message: string) => {
+      setActiveError(message);
+      addLog(message, 'system', 'error');
+  };
+
   const updateAgent = (id: string, updates: Partial<Agent>) => {
     setAgents(prev => prev.map(a => a.id === id ? { ...a, ...updates } : a));
   };
@@ -221,7 +227,7 @@ const App: React.FC = () => {
             addLog('No changes required or refinement failed.', '4', 'warning');
         }
     } catch (e) {
-        addLog(`Refinement error: ${e}`, 'system', 'error');
+        showError(`Refinement error: ${e instanceof Error ? e.message : String(e)}`);
     } finally {
         updateAgent('4', { status: 'idle', message: 'Refinement complete.' });
         setIsRefining(false);
@@ -232,6 +238,7 @@ const App: React.FC = () => {
   const runForgeWorkflow = async (config: ProjectConfig) => {
     try {
         setCompleted(false);
+        setActiveError(null);
         setFiles([]);
         setLogs([]);
         setAgents(INITIAL_AGENTS);
@@ -252,7 +259,9 @@ const App: React.FC = () => {
             setSelectedFile(res1.files[0]);
             addLog('Project structure and documentation generated.', '1', 'success');
         } else {
-            addLog('Failed to generate initial documentation.', '1', 'error');
+            showError('Failed to generate initial documentation. AI response parsed incorrectly.');
+            updateAgent('1', { status: 'idle', message: 'Failed.' });
+            return;
         }
         updateAgent('1', { status: 'done', message: 'Specs complete.' });
         updateStep(1, 'completed');
@@ -285,7 +294,8 @@ const App: React.FC = () => {
             updateAgent('3', { status: 'done', message: 'Assets ready.' });
             updateStep(3, 'completed');
         } else {
-            addLog('Failed to generate styles.', '3', 'error');
+            showError('Failed to generate styles. AI response parsed incorrectly.');
+            return;
         }
 
         // HTML
@@ -299,7 +309,8 @@ const App: React.FC = () => {
             addLog('DOM structure generated.', '4', 'success');
             updateStep(4, 'completed');
         } else {
-            addLog('Failed to generate DOM.', '4', 'error');
+            showError('Failed to generate DOM. AI response parsed incorrectly.');
+            return;
         }
 
 
@@ -347,7 +358,8 @@ const App: React.FC = () => {
             updateAgent('4', { status: 'done', message: 'Implementation complete.' });
             updateStep(5, 'completed');
         } else {
-            addLog('Logic implementation failed or incomplete.', '4', 'error');
+            showError('Logic implementation failed. AI response parsed incorrectly.');
+            return;
         }
 
         // --- Step 6: QA ---
@@ -361,7 +373,7 @@ const App: React.FC = () => {
         setCompleted(true);
     } catch (error) {
         console.error("Workflow Error:", error);
-        addLog(`CRITICAL WORKFLOW ERROR: ${error instanceof Error ? error.message : String(error)}`, 'system', 'error');
+        showError(`CRITICAL WORKFLOW ERROR: ${error instanceof Error ? error.message : String(error)}`);
         setCompleted(false);
     }
   };
@@ -375,7 +387,23 @@ const App: React.FC = () => {
   const toggleZenMode = () => setIsZenMode(prev => !prev);
 
   return (
-    <div className={`flex flex-col h-screen bg-brand-background text-brand-text-primary overflow-hidden ${isResizing ? 'cursor-col-resize select-none' : ''}`}>
+    <div className={`flex flex-col h-screen bg-brand-background text-brand-text-primary overflow-hidden ${isResizing ? 'cursor-col-resize select-none' : ''} relative`}>
+      {/* Global Error Toast */}
+      {activeError && (
+        <div className="absolute top-6 left-1/2 -translate-x-1/2 z-[100] w-full max-w-lg animate-in slide-in-from-top-4 fade-in duration-300">
+           <div className="bg-red-500/10 border border-red-500/50 text-red-100 px-4 py-3 rounded-lg shadow-2xl backdrop-blur-md flex items-start gap-3">
+              <div className="shrink-0 mt-0.5"><AlertTriangleIcon /></div>
+              <div className="flex-1 text-sm font-medium">{activeError}</div>
+              <button 
+                onClick={() => setActiveError(null)} 
+                className="shrink-0 text-red-300 hover:text-white transition-colors p-0.5 hover:bg-red-500/20 rounded"
+              >
+                  <XIcon />
+              </button>
+           </div>
+        </div>
+      )}
+
       {/* Header hidden in Zen Mode */}
       {!isZenMode && (
           <Header 
