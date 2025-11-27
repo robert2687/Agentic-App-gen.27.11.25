@@ -1,9 +1,11 @@
+
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { Header } from './components/Header';
 import { Panel } from './components/Section';
 import { CodeEditor } from './components/CodeBlock';
 import { AgentCard } from './components/PipelineStage';
 import { CreateWizard } from './components/wizard/CreateWizard';
+import { RefineModal } from './components/RefineModal';
 import { Button } from './components/ui/Button';
 import { INITIAL_AGENTS, INITIAL_STEPS } from './constants';
 import { aiService } from './services/aiService';
@@ -34,6 +36,10 @@ const App: React.FC = () => {
   const [previewWidth, setPreviewWidth] = useState(45);
   const [isResizing, setIsResizing] = useState(false);
   const [isZenMode, setIsZenMode] = useState(false);
+
+  // Refinement State
+  const [isRefineModalOpen, setIsRefineModalOpen] = useState(false);
+  const [isRefining, setIsRefining] = useState(false);
   
   const logsEndRef = useRef<HTMLDivElement>(null);
   const iframeRef = useRef<HTMLIFrameElement>(null);
@@ -177,6 +183,50 @@ const App: React.FC = () => {
       setViewMode('ide');
       // Ensure state is set before running workflow
       setTimeout(() => runForgeWorkflow(config), 0);
+  };
+
+  const handleRefinement = async (instruction: string) => {
+    if (!projectConfig || !files.length) return;
+    
+    setIsRefining(true);
+    addLog(`Refinement request: "${instruction}"`, 'system', 'cmd');
+    updateAgent('4', { status: 'working', message: 'Applying refinements...' });
+    
+    try {
+        const updatedFiles = await aiService.refineCode(files, instruction, projectConfig);
+        
+        if (updatedFiles.length > 0) {
+            // Merge updated files into existing files
+            const newFiles = [...files];
+            updatedFiles.forEach(uf => {
+                const idx = newFiles.findIndex(f => f.name === uf.name);
+                if (idx !== -1) {
+                    newFiles[idx] = uf;
+                    addLog(`Updated ${uf.name}`, '4', 'success');
+                } else {
+                    newFiles.push(uf);
+                    addLog(`Created ${uf.name}`, '4', 'success');
+                }
+            });
+            setFiles(newFiles);
+            // Update selected file if the current one was changed, or select the first changed one
+            if (selectedFile) {
+                const updatedSelected = updatedFiles.find(f => f.name === selectedFile.name);
+                if (updatedSelected) setSelectedFile(updatedSelected);
+            } else {
+                setSelectedFile(updatedFiles[0]);
+            }
+            addLog('Refinement applied successfully.', 'system', 'success');
+        } else {
+            addLog('No changes required or refinement failed.', '4', 'warning');
+        }
+    } catch (e) {
+        addLog(`Refinement error: ${e}`, 'system', 'error');
+    } finally {
+        updateAgent('4', { status: 'idle', message: 'Refinement complete.' });
+        setIsRefining(false);
+        setIsRefineModalOpen(false);
+    }
   };
 
   const runForgeWorkflow = async (config: ProjectConfig) => {
@@ -332,7 +382,9 @@ const App: React.FC = () => {
             viewMode={viewMode} 
             onNavigateHome={() => setViewMode('dashboard')} 
             onExport={handleExport}
+            onRefine={() => setIsRefineModalOpen(true)}
             canExport={completed && files.length > 0}
+            canRefine={completed && files.length > 0}
           />
       )}
       
@@ -594,6 +646,14 @@ const App: React.FC = () => {
             </div>
         </div>
       )}
+      
+      {/* Refine Modal */}
+      <RefineModal 
+         isOpen={isRefineModalOpen} 
+         onClose={() => setIsRefineModalOpen(false)} 
+         onSubmit={handleRefinement}
+         isProcessing={isRefining}
+      />
     </div>
   );
 };

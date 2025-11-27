@@ -219,5 +219,47 @@ export const aiService = {
      });
      
      return response.text || "Proceed with standard best practices.";
+  },
+
+  refineCode: async (currentFiles: File[], instruction: string, config: ProjectConfig): Promise<File[]> => {
+    const fileContext = currentFiles.map(f => `--- ${f.name} ---\n${f.content}`).join('\n\n');
+    
+    const systemInstruction = "You are a Senior Full Stack Developer tasking with refining an existing codebase based on user feedback.";
+    const userMessage = `
+    Project: ${config.name}
+    Description: ${config.description}
+    Theme: ${config.theme}
+    
+    Current Files:
+    ${fileContext}
+    
+    User Refinement Instruction: "${instruction}"
+    
+    DIRECTIVE:
+    - Analyze the request. 
+    - Modify the existing files or create new ones to satisfy the request.
+    - Ensure consistency with the existing theme and structure.
+    - Return a JSON object with a "files" array containing ONLY the files that need to be updated.
+    - You MUST return the FULL CONTENT of any file you modify. Do not use diffs or placeholders.
+    `;
+
+    try {
+      const response = await ai.models.generateContent({
+        model: MODEL_NAME,
+        contents: userMessage,
+        config: {
+            systemInstruction: systemInstruction,
+            responseMimeType: "application/json",
+            responseSchema: fileSchema,
+        },
+      });
+
+      const cleanText = cleanJson(response.text || "{}");
+      const output = JSON.parse(cleanText);
+      return output.files || [];
+    } catch (e) {
+      console.error("Failed to parse Refine response", e);
+      return [];
+    }
   }
 };
