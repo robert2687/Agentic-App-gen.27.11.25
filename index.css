@@ -4,11 +4,15 @@
 
 @layer base {
   body {
-    @apply bg-brand-background text-brand-text-primary;
+    @apply bg-brand-background text-brand-text-primary bg-mesh bg-fixed bg-cover selection:bg-brand-primary/30;
   }
 }
 
 @layer utilities {
+  .glass {
+    @apply bg-white/5 backdrop-blur-lg border border-white/10 shadow-glass;
+  }
+
   .no-scrollbar::-webkit-scrollbar {
     display: none;
   }
