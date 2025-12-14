@@ -4,71 +4,10 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Agentic AI App Builder</title>
-    <script src="https://cdn.tailwindcss.com"></script>
-    <script>
-      tailwind.config = {
-        theme: {
-          extend: {
-            colors: {
-              'brand-primary': '#38bdf8', // Sky 400 - brighter for dark mode
-              'brand-secondary': '#64748b', // Slate 500
-              'brand-background': '#0f172a', // Slate 900
-              'brand-surface': '#1e293b', // Slate 800
-              'brand-surface-light': '#334155', // Slate 700
-              'brand-text-primary': '#f1f5f9', // Slate 100
-              'brand-text-secondary': '#94a3b8', // Slate 400
-              'accent-success': '#10b981',
-              'accent-warning': '#f59e0b',
-              'ide-bg': '#1e1e1e',
-              'ide-sidebar': '#252526',
-              'ide-border': '#3e3e42',
-            },
-            fontFamily: {
-              sans: ['Inter', 'sans-serif'],
-              mono: ['JetBrains Mono', 'Menlo', 'monospace'],
-            },
-            animation: {
-              'pulse-fast': 'pulse 1.5s cubic-bezier(0.4, 0, 0.6, 1) infinite',
-              'float': 'float 6s ease-in-out infinite',
-            },
-            keyframes: {
-              float: {
-                '0%, 100%': { transform: 'translateY(0)' },
-                '50%': { transform: 'translateY(-10px)' },
-              }
-            }
-          },
-        },
-      }
-    </script>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
-    <style>
-      /* Custom Scrollbar for a cleaner look */
-      ::-webkit-scrollbar {
-        width: 10px;
-        height: 10px;
-      }
-      ::-webkit-scrollbar-track {
-        background: #1e1e1e;
-      }
-      ::-webkit-scrollbar-thumb {
-        background: #4b5563;
-        border-radius: 5px;
-        border: 2px solid #1e1e1e;
-      }
-      ::-webkit-scrollbar-thumb:hover {
-        background: #6b7280;
-      }
-
-      /* Selection color */
-      ::selection {
-        background: rgba(56, 189, 248, 0.3);
-        color: white;
-      }
-    </style>
   <script type="importmap">
 {
   "imports": {
